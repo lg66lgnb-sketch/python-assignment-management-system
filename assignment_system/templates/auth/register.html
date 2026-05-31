@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}注册 - 作业管理系统{% endblock %}
+{% block content %}
+<section class="auth-panel">
+    <h1>用户注册</h1>
+    <form method="post" class="form-stack">
+        <label>用户名
+            <input name="username" required autofocus>
+        </label>
+        <label>姓名
+            <input name="name" required>
+        </label>
+        <label>密码
+            <input name="password" type="password" required>
+        </label>
+        <label>角色
+            <select name="role">
+                <option value="student">学生</option>
+                <option value="teacher">教师（需管理员审核）</option>
+            </select>
+        </label>
+        <button class="primary-btn" type="submit">提交注册</button>
+    </form>
+</section>
+{% endblock %}
+

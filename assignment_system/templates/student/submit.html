@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}提交作业 - 作业管理系统{% endblock %}
+{% block content %}
+<section class="auth-panel wide">
+    <h1>提交作业</h1>
+    <p class="hint">{{ assignment.course_name }} / {{ assignment.title }} / 截止时间：{{ assignment.deadline }}</p>
+    <form method="post" enctype="multipart/form-data" class="form-stack">
+        <label>提交说明
+            <textarea name="content" rows="7" placeholder="填写完成情况、文件说明或遇到的问题"></textarea>
+        </label>
+        <label>上传文件
+            <input name="file" type="file">
+        </label>
+        <button class="primary-btn" type="submit">保存提交</button>
+    </form>
+</section>
+{% endblock %}
+

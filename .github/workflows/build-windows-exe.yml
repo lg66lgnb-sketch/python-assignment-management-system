@@ -1,0 +1,40 @@
+name: build-windows-exe
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build exe
+        run: |
+          pyinstaller --noconfirm --clean --onefile `
+            --name HomeworkSystem `
+            --add-data "assignment_system\templates;assignment_system\templates" `
+            --add-data "assignment_system\static;assignment_system\static" `
+            --add-data "assignment_system\schema.sql;assignment_system" `
+            main.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HomeworkSystem-Windows
+          path: dist/HomeworkSystem.exe
+

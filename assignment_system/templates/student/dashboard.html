@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}学生工作台 - 作业管理系统{% endblock %}
+{% block content %}
+<section class="page-head">
+    <h1>学生工作台</h1>
+    <p>加入课程，查看作业，提交或修改自己的作业。</p>
+</section>
+
+<section class="panel">
+    <h2>可选课程</h2>
+    <div class="cards-grid">
+        {% for course in all_courses %}
+        <article class="item-card">
+            <h3>{{ course.name }}</h3>
+            <p>{{ course.description }}</p>
+            <span>任课教师：{{ course.teacher_name }}</span>
+            {% if course.id in enrolled_ids %}
+            <span class="badge approved">已加入</span>
+            {% else %}
+            <form method="post" action="{{ url_for('student_enroll_course', course_id=course.id) }}">
+                <button type="submit">加入课程</button>
+            </form>
+            {% endif %}
+        </article>
+        {% else %}
+        <p class="empty">暂无课程。</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <h2>我的作业</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>作业</th>
+                    <th>课程</th>
+                    <th>截止时间</th>
+                    <th>提交状态</th>
+                    <th>成绩</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in assignments %}
+                <tr>
+                    <td>{{ assignment.title }}</td>
+                    <td>{{ assignment.course_name }}</td>
+                    <td>{{ assignment.deadline }}</td>
+                    <td>{{ "已提交" if assignment.submission_id else "未提交" }}</td>
+                    <td>
+                        {% if assignment.score is not none %}
+                        {{ assignment.score }} 分<br><span class="muted">{{ assignment.comment }}</span>
+                        {% else %}
+                        未评分
+                        {% endif %}
+                    </td>
+                    <td><a class="small-btn" href="{{ url_for('student_submit_assignment', assignment_id=assignment.id) }}">提交/修改</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">加入课程后会显示作业。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+

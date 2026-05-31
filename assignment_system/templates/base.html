@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}作业管理系统{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="{{ url_for('index') }}">作业管理系统</a>
+        <nav class="nav">
+            {% if current_user %}
+                <span>{{ current_user.name }}（{{ role_names[current_user.role] }}）</span>
+                <a href="{{ url_for('logout') }}">退出</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">登录</a>
+                <a href="{{ url_for('register') }}">注册</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main class="page">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <section class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
+

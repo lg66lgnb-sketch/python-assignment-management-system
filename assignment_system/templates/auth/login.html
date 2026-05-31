@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}登录 - 作业管理系统{% endblock %}
+{% block content %}
+<section class="auth-panel">
+    <h1>用户登录</h1>
+    <form method="post" class="form-stack">
+        <label>用户名
+            <input name="username" required autofocus>
+        </label>
+        <label>密码
+            <input name="password" type="password" required>
+        </label>
+        <button class="primary-btn" type="submit">登录</button>
+    </form>
+    <p class="hint">没有账号？<a href="{{ url_for('register') }}">注册学生或教师账号</a></p>
+    <div class="demo-box">
+        <strong>演示账号</strong>
+        <span>管理员 admin / admin123</span>
+        <span>教师 teacher01 / teacher123</span>
+        <span>学生 student01 / student123</span>
+    </div>
+</section>
+{% endblock %}
+

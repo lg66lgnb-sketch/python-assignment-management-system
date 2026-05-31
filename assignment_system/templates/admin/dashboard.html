@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}管理员后台 - 作业管理系统{% endblock %}
+{% block content %}
+<section class="page-head">
+    <h1>管理员后台</h1>
+    <p>审核教师账号，查看系统基础数据。</p>
+</section>
+
+<section class="stats-grid">
+    <div class="stat"><span>用户数</span><strong>{{ counts.users }}</strong></div>
+    <div class="stat"><span>课程数</span><strong>{{ counts.courses }}</strong></div>
+    <div class="stat"><span>作业数</span><strong>{{ counts.assignments }}</strong></div>
+    <div class="stat"><span>提交数</span><strong>{{ counts.submissions }}</strong></div>
+</section>
+
+<section class="panel">
+    <h2>用户管理</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>姓名</th>
+                    <th>角色</th>
+                    <th>状态</th>
+                    <th>注册时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ role_names[user.role] }}</td>
+                    <td><span class="badge {{ user.status }}">{{ status_names[user.status] }}</span></td>
+                    <td>{{ user.created_at }}</td>
+                    <td class="actions">
+                        {% if user.status != "approved" %}
+                        <form method="post" action="{{ url_for('admin_set_user_status', user_id=user.id, status='approved') }}">
+                            <button type="submit">通过</button>
+                        </form>
+                        {% endif %}
+                        {% if user.status != "disabled" %}
+                        <form method="post" action="{{ url_for('admin_set_user_status', user_id=user.id, status='disabled') }}">
+                            <button type="submit">停用</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
