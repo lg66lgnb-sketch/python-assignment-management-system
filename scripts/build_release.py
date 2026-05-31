@@ -34,7 +34,7 @@ def should_skip(path):
     return False
 
 
-def write_zip(zip_path, include_runtime_notes=False):
+def write_zip(zip_path, include_runtime_notes=False, runtime_exe=None):
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in ROOT.rglob("*"):
             if path.is_file() and not should_skip(path):
@@ -47,17 +47,22 @@ def write_zip(zip_path, include_runtime_notes=False):
                 "3. 默认访问地址：http://127.0.0.1:5000。\n"
             )
             archive.writestr("运行说明.txt", note)
+        if runtime_exe:
+            archive.writestr("HomeworkSystem.exe", runtime_exe)
 
 
 def main():
     OUT.mkdir(exist_ok=True)
+    exe_path = OUT / "HomeworkSystem.exe"
+    runtime_exe = exe_path.read_bytes() if exe_path.exists() else None
     shutil.rmtree(OUT, ignore_errors=True)
     OUT.mkdir(exist_ok=True)
+    if runtime_exe:
+        exe_path.write_bytes(runtime_exe)
     write_zip(OUT / "源程序压缩包.zip")
-    write_zip(OUT / "执行程序及运行环境压缩包.zip", include_runtime_notes=True)
+    write_zip(OUT / "执行程序及运行环境压缩包.zip", include_runtime_notes=True, runtime_exe=runtime_exe)
     print(f"交付压缩包已生成：{OUT}")
 
 
 if __name__ == "__main__":
     main()
-
