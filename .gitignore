@@ -16,3 +16,7 @@ build/
 .coverage
 Python大作业要求2026.pptx
 ~$*.pptx
+docs/pdf/*.aux
+docs/pdf/*.log
+docs/pdf/*.out
+docs/word/

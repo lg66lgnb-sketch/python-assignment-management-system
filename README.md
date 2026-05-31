@@ -48,11 +48,29 @@ python scripts/init_db.py --reset
 
 ```text
 assignment_system/     系统代码
-docs/                  设计说明书、使用手册、过程剖析
+docs/latex/            LaTeX 文档源文件
+docs/pdf/              PDF 版系统设计说明书、使用手册、过程剖析
 scripts/               初始化、打包和辅助脚本
 tests/                 自动化测试
 run_windows.bat        Windows 一键运行脚本
 build_windows_exe.bat  Windows 打包脚本
+```
+
+## 文档
+
+正式提交建议使用 `docs/pdf/` 下的三个 PDF 文件：
+
+- `系统设计说明书.pdf`
+- `用户使用手册.pdf`
+- `过程剖析.pdf`
+
+如需重新生成 PDF，可在 macOS 或安装 TeX Live 的 Windows 环境中执行：
+
+```bash
+cd docs/latex
+xelatex -output-directory=../pdf 系统设计说明书.tex
+xelatex -output-directory=../pdf 用户使用手册.tex
+xelatex -output-directory=../pdf 过程剖析.tex
 ```
 
 ## Windows 答辩建议

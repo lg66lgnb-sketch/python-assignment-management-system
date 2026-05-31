@@ -1,0 +1,53 @@
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\graphicspath{{../screenshots/}}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.35em}
+\setlist{nosep,leftmargin=2em}
+\renewcommand{\arraystretch}{1.25}
+\captionsetup{font=small,labelfont=bf}
+\sloppy
+
+\definecolor{mainblue}{HTML}{1F5F99}
+\definecolor{lightblue}{HTML}{EAF2FF}
+\definecolor{linegray}{HTML}{CED6E0}
+\definecolor{softyellow}{HTML}{FFF6DF}
+
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\docmeta}[2]{\noindent\textbf{#1：}#2\par}
+\newcommand{\screenshot}[3][0.92\textwidth]{
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=#1]{#2}
+    \caption{#3}
+  \end{figure}
+}
+
+\tikzset{
+  flow/.style={rectangle,rounded corners,draw=mainblue,fill=lightblue,minimum width=2.6cm,minimum height=0.9cm,align=center,font=\small},
+  decision/.style={diamond,aspect=2,draw=mainblue,fill=softyellow,align=center,font=\small,inner sep=1pt},
+  dataobj/.style={rectangle,draw=linegray,fill=white,minimum width=2.6cm,minimum height=0.85cm,align=center,font=\small},
+  actor/.style={rectangle,rounded corners,draw=mainblue,fill=lightblue,minimum width=2.2cm,minimum height=0.9cm,align=center,font=\small\bfseries},
+  usecase/.style={ellipse,draw=mainblue,fill=white,minimum width=2.9cm,minimum height=0.85cm,align=center,font=\small},
+  classbox/.style={rectangle,draw=mainblue,fill=white,minimum width=3.1cm,minimum height=1.2cm,align=left,font=\small},
+  arrow/.style={-{Latex[length=3mm]},thick,draw=mainblue},
+  line/.style={thick,draw=mainblue}
+}
+
