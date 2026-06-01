@@ -184,7 +184,11 @@ def register_routes(app):
     @app.post("/teacher/assignments")
     @role_required("teacher")
     def teacher_create_assignment():
-        course_id = int(request.form.get("course_id", 0))
+        try:
+            course_id = int(request.form.get("course_id", 0))
+        except (TypeError, ValueError):
+            flash("请选择有效课程。")
+            return redirect(url_for("teacher_dashboard"))
         if not CourseService().is_teacher_owner(course_id, current_user()["id"]):
             flash("只能给自己的课程布置作业。")
             return redirect(url_for("teacher_dashboard"))

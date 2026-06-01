@@ -77,6 +77,23 @@ class WorkflowTestCase(unittest.TestCase):
         response = self.client.post("/admin/users/6/status/approved", follow_redirects=True)
         self.assertIn("用户状态已更新".encode("utf-8"), response.data)
 
+    def test_invalid_assignment_course_id_shows_message(self):
+        response = self.login("teacher01", "teacher123")
+        self.assertIn("教师工作台".encode("utf-8"), response.data)
+
+        response = self.client.post(
+            "/teacher/assignments",
+            data={
+                "course_id": "abc",
+                "title": "异常表单测试",
+                "deadline": "2026-06-01T10:00",
+                "description": "模拟表单课程编号异常",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("请选择有效课程".encode("utf-8"), response.data)
+
 
 if __name__ == "__main__":
     unittest.main()

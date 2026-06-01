@@ -8,77 +8,153 @@
 \begin{document}
 \maketitle
 
-\section{问题一：初始化脚本导入失败}
+\section{开发与调试概述}
 
-\subsection{问题现象}
+本系统开发过程主要围绕三类问题展开：一是 Web 表单输入不符合预期时，后端路由是否会直接崩溃；二是 Python 文件在修改过程中是否存在语法或缩进错误；三是修复后是否有测试用例或命令行检查保证问题不再出现。为了避免只描述结果，本报告保留了两个真实调试案例：一个来自 Flask 路由业务逻辑，一个来自 Python 编译检查阶段。
 
-在项目根目录执行数据库初始化脚本时，终端出现 \code{ModuleNotFoundError}，提示找不到 \code{assignment_system} 模块。
-
-\screenshot{bug_01_import_error_flat.jpg}{初始化脚本导入失败}
-
-\subsection{排查过程}
-
-开始以为是虚拟环境没有安装依赖，但检查后发现 Flask 已经安装。继续观察错误位置，发现报错发生在 \code{scripts/init_db.py} 第一行导入项目包时。原因是直接运行 \code{scripts/init_db.py} 时，Python 会把 \code{scripts} 目录放到模块搜索路径最前面，而不是项目根目录，所以找不到同级目录外的 \code{assignment_system} 包。
-
-\subsection{修复方法}
-
-在脚本开头计算项目根目录，并将根目录加入 \code{sys.path}，然后再导入系统模块。修复后再次执行初始化脚本，数据库可以正常创建。
-
-\newpage
-
-\section{问题二：启动脚本重复重建数据库}
-
-\subsection{问题现象}
-
-检查 Windows 一键运行流程时发现，\code{run_windows.bat} 每次启动都会执行 \code{python scripts/init_db.py}。原来的初始化脚本会直接调用 \code{init_db(seed=True)}，而 \code{init_db} 会执行 \code{schema.sql} 中的 \code{DROP TABLE} 语句。这样第二次启动系统时，之前提交的作业和评分记录都会被清空。
-
-\screenshot{bug_02_init_reset_flat.jpg}{重复初始化风险}
-
-\subsection{排查过程}
-
-先查看 \code{run_windows.bat}，确认启动前一定会调用初始化脚本。再查看 \code{scripts/init_db.py}，发现脚本没有区分“首次建库”和“重置数据库”。最后查看 \code{schema.sql}，发现文件开头包含多个 \code{DROP TABLE IF EXISTS} 语句，所以问题根源是启动脚本把“重置数据库”当成了“检查数据库”。
-
-\subsection{修复方法}
-
-新增 \code{ensure_db} 方法，只检查数据库中是否存在 \code{users} 表。如果表不存在，说明是第一次运行，再创建数据库和演示数据；如果表已经存在，就保留原有数据。初始化脚本增加 \code{--reset} 参数，只有手动执行 \code{python scripts/init_db.py --reset} 才会清空并重建数据库。
-
-\newpage
-
-\section{功能验证过程}
-
-修复后进行了以下验证：
-
-\begin{enumerate}
-  \item 管理员账号可以登录后台。
-  \item 待审核教师显示在用户表中，管理员可以审核。
-  \item 教师可以创建课程并发布作业。
-  \item 学生可以加入课程并提交作业。
-  \item 教师可以查看提交记录，填写成绩和评语。
-  \item 教师可以导出 CSV 统计文件。
-  \item 自动化测试通过。
-\end{enumerate}
-
-测试命令：
+调试时使用的主要命令如下：
 
 \begin{verbatim}
-.venv/bin/python -m unittest discover -s tests -v
+.venv\Scripts\python -m unittest discover -s tests -v
+.venv\Scripts\python -m py_compile docs\bug_repro\compile_indent_before.py
+.venv\Scripts\python -m py_compile docs\bug_repro\compile_indent_after.py
 \end{verbatim}
 
-测试结果：
+这些命令分别用于运行系统工作流测试和检查 Python 源文件是否能通过编译。下面按问题出现、原因分析、修复方法、修复后验证四个角度记录。
+
+\newpage
+
+\section{问题一：发布作业时课程编号异常导致服务器错误}
+
+\subsection{问题现象}
+
+在教师发布作业功能调试时，我发现后端接口对表单中的课程编号缺少异常处理。正常页面上的课程下拉框一般只会提交数字编号，但如果浏览器重复提交旧页面、表单被异常修改，或前端传来的 \code{course_id} 不是数字，后端会直接执行 \code{int()} 转换并抛出异常，页面显示 500 错误。
+
+\screenshot{bug_01_form_validation_before.png}{修复前课程编号异常导致 500 错误}
+
+\subsection{排查过程}
+
+根据错误日志继续向下追踪，异常位置定位在 \code{assignment_system/routes.py} 的教师发布作业路由中。原代码直接写成：
 
 \begin{verbatim}
-Ran 2 tests in 1.293s
+course_id = int(request.form.get("course_id", 0))
+\end{verbatim}
+
+这行代码默认表单中的课程编号一定可以转成整数。实际测试时提交 \code{course_id=abc}，程序会抛出：
+
+\begin{verbatim}
+ValueError: invalid literal for int() with base 10: 'abc'
+\end{verbatim}
+
+这个问题属于典型的表单输入校验不完整。虽然正常用户通过下拉框操作时不容易遇到，但后端不能完全依赖前端控件，仍然需要对收到的数据做校验。
+
+\subsection{修复方法}
+
+修复时在课程编号转换外层增加 \code{try/except}。当课程编号缺失或不是数字时，不再让 Flask 返回 500，而是向用户显示提示并回到教师工作台。
+
+\begin{verbatim}
+try:
+    course_id = int(request.form.get("course_id", 0))
+except (TypeError, ValueError):
+    flash("请选择有效课程。")
+    return redirect(url_for("teacher_dashboard"))
+\end{verbatim}
+
+这样处理后，后端对异常表单数据有了明确兜底，页面行为也和普通业务校验保持一致。
+
+\newpage
+
+\subsection{修复后效果}
+
+使用同样的异常表单再次提交后，系统不再出现 500 错误，而是回到教师工作台，并在顶部显示“请选择有效课程。”提示。
+
+\screenshot{bug_01_form_validation_after.png}{修复后显示有效课程提示}
+
+\subsection{自动化验证}
+
+为了避免以后修改时再次出现同类问题，我补充了单元测试 \code{test_invalid_assignment_course_id_shows_message}。测试过程先登录教师账号，再向发布作业接口提交异常的 \code{course_id=abc}，期望返回正常页面并显示提示信息。
+
+修复前，新增测试会失败，错误位置指向 \code{course_id = int(...)}；修复后，全部测试通过：
+
+\begin{verbatim}
+test_admin_teacher_student_workflow ... ok
+test_invalid_assignment_course_id_shows_message ... ok
+test_pending_teacher_cannot_login_before_approval ... ok
+
+Ran 3 tests in 2.149s
 OK
 \end{verbatim}
 
-\screenshot{08_teacher_after_grade.png}{评分后页面}
+\newpage
+
+\section{问题二：Python 编译检查发现缩进错误}
+
+\subsection{问题现象}
+
+Python 对缩进非常敏感。开发过程中，如果在循环、判断、函数等代码块下面少缩进一层，程序在真正运行前就会失败。为了在提交前提前发现这种问题，我使用 \code{py_compile} 对单个 Python 文件进行编译检查。修复前的复现文件为：
+
+\begin{verbatim}
+def total_score(items):
+    total = 0
+    for item in items:
+    total += item["score"]
+    return total
+\end{verbatim}
+
+其中 \code{total += item["score"]} 应该属于 \code{for} 循环体，但实际没有缩进到循环内部。运行编译检查后，终端直接报出 \code{IndentationError}。
+
+\screenshot{bug_02_py_compile_before.png}{修复前 py\_compile 检查发现缩进错误}
+
+\subsection{原因分析}
+
+这个错误不是业务逻辑错误，而是 Python 源代码在解释执行前的语法结构错误。它的特点是：
+
+\begin{itemize}
+  \item 浏览器页面还没有机会打开，程序就已经无法通过编译。
+  \item 错误位置通常会指向代码块后的第一行异常缩进位置。
+  \item 如果只靠肉眼检查，长文件中很容易漏掉一行缩进。
+\end{itemize}
+
+因此在调试这类问题时，先用 \code{py_compile} 做快速检查比直接启动 Web 服务更清楚。它可以把问题限定在某个 Python 文件内部，避免把语法错误误判成 Flask 或数据库问题。
 
 \newpage
 
-\section{总结}
+\subsection{修复方法}
 
-本次开发过程中，主要问题集中在运行环境和数据持久化两个方面。第一个问题说明脚本直接运行时要注意模块搜索路径；第二个问题说明初始化逻辑不能随意清空数据库，尤其是答辩现场需要多次启动系统时，更要保证数据不会丢失。
+修复方式是把累加语句缩进到 \code{for} 循环体内部，使代码块结构和程序意图一致：
 
-通过这两个问题的排查，系统最终形成了更稳定的运行方式：源码运行时自动检查数据库，必要时才初始化；如需重新演示初始数据，可以手动执行重置参数。这样既能保证首次运行方便，也能避免答辩时误删数据。
+\begin{verbatim}
+def total_score(items):
+    total = 0
+    for item in items:
+        total += item["score"]
+    return total
+\end{verbatim}
+
+修复后再次运行：
+
+\begin{verbatim}
+.venv\Scripts\python -m py_compile docs\bug_repro\compile_indent_after.py
+\end{verbatim}
+
+命令可以正常结束，并输出手动补充的通过提示。
+
+\screenshot{bug_02_py_compile_after.png}{修复后 py\_compile 检查通过}
+
+\section{调试经验总结}
+
+两个问题分别对应了开发过程中的两层质量检查。第一个问题发生在 Web 运行阶段，需要通过异常请求和单元测试发现；第二个问题发生在 Python 编译阶段，可以在运行服务前通过 \code{py_compile} 提前发现。对课程作业项目来说，这两类检查都很有用。
+
+\begin{longtable}{p{3.2cm}p{4.6cm}p{5.8cm}}
+\toprule
+问题类型 & 表现 & 处理方式 \\
+\midrule
+表单输入异常 & 页面返回 500，后端日志出现 ValueError & 增加 try/except 和业务提示，并补充单元测试 \\
+Python 缩进错误 & py\_compile 报 IndentationError & 调整代码块缩进，再次运行编译检查 \\
+回归验证不足 & 修复后无法确认是否会复发 & 将异常输入场景写入 tests 目录下的测试用例 \\
+\bottomrule
+\end{longtable}
+
+通过这次调试可以看出，系统开发不能只关注“正常流程能跑通”。后端接口应当假设输入可能不合法，Python 文件也应在提交前先通过编译检查。最终修复后，系统在异常输入下不再崩溃，代码也通过了单元测试和编译检查，交付稳定性更高。
 
 \end{document}

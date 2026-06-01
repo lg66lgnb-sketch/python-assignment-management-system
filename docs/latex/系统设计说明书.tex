@@ -86,19 +86,19 @@
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}
-  \node[dataobj] (users) at (0,2.2) {USERS\\用户};
-  \node[dataobj] (courses) at (-3.4,0.2) {COURSES\\课程};
-  \node[dataobj] (enrollments) at (0,0.2) {ENROLLMENTS\\选课};
-  \node[dataobj] (assignments) at (3.4,0.2) {ASSIGNMENTS\\作业};
-  \node[dataobj] (submissions) at (3.4,-2.0) {SUBMISSIONS\\提交};
-  \draw[line] (users) -- (courses);
-  \draw[line] (users) -- (enrollments);
-  \draw[line] (courses) -- (enrollments);
-  \draw[line] (courses) -- (assignments);
-  \draw[line] (assignments) -- (submissions);
-  \draw[line] (users) -- ++(0,-3.7) -| (submissions);
-  \node[align=left,font=\scriptsize] at (-1.75,-2.35) {关系说明：教师创建课程；学生通过选课加入课程；\\课程发布作业；学生围绕作业形成提交记录。};
+\begin{tikzpicture}[node distance=1.25cm and 1.55cm]
+  \node[dataobj,text width=2.55cm] (users) at (0,0) {USERS\\用户};
+  \node[dataobj,text width=2.7cm] (courses) at (4.0,1.35) {COURSES\\课程};
+  \node[dataobj,text width=2.7cm] (enrollments) at (4.0,-1.35) {ENROLLMENTS\\选课};
+  \node[dataobj,text width=2.85cm] (assignments) at (8.2,1.35) {ASSIGNMENTS\\作业};
+  \node[dataobj,text width=2.85cm] (submissions) at (8.2,-1.35) {SUBMISSIONS\\提交};
+
+  \draw[arrow] (users.east) -- node[pos=0.52,above,fill=white,inner sep=1pt,font=\scriptsize]{教师开课} (courses.west);
+  \draw[arrow] (users.east) -- node[pos=0.52,below,fill=white,inner sep=1pt,font=\scriptsize]{学生选课} (enrollments.west);
+  \draw[arrow] (courses.east) -- node[above,fill=white,inner sep=1pt,font=\scriptsize]{发布作业} (assignments.west);
+  \draw[arrow] (courses.south) -- node[right,fill=white,inner sep=1pt,font=\scriptsize]{课程成员} (enrollments.north);
+  \draw[arrow] (assignments.south) -- node[right,fill=white,inner sep=1pt,font=\scriptsize]{作业提交} (submissions.north);
+  \draw[arrow] (enrollments.east) -- node[below,fill=white,inner sep=1pt,font=\scriptsize]{学生记录} (submissions.west);
 \end{tikzpicture}
 \caption{数据库实体关系图}
 \end{figure}
@@ -109,30 +109,36 @@
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[node distance=0.62cm]
-  \begin{scope}[xshift=-4.2cm]
-    \node[actor] (admin) at (0,2.1) {管理员};
-    \node[usecase] (a1) at (0,0.95) {审核教师账号};
-    \node[usecase] (a2) at (0,0.0) {停用用户};
-    \node[usecase] (a3) at (0,-0.95) {查看基础统计};
-    \foreach \x in {a1,a2,a3} \draw[line] (admin) -- (\x);
-  \end{scope}
-  \begin{scope}[xshift=0cm]
-    \node[actor] (teacher) at (0,2.1) {教师};
-    \node[usecase] (t1) at (0,0.95) {创建课程};
-    \node[usecase] (t2) at (0,0.0) {布置作业};
-    \node[usecase] (t3) at (0,-0.95) {查看提交};
-    \node[usecase] (t4) at (0,-1.9) {评分导出};
-    \foreach \x in {t1,t2,t3,t4} \draw[line] (teacher) -- (\x);
-  \end{scope}
-  \begin{scope}[xshift=4.2cm]
-    \node[actor] (student) at (0,2.1) {学生};
-    \node[usecase] (s1) at (0,0.95) {加入课程};
-    \node[usecase] (s2) at (0,0.0) {查看作业};
-    \node[usecase] (s3) at (0,-0.95) {提交作业};
-    \node[usecase] (s4) at (0,-1.9) {查看成绩};
-    \foreach \x in {s1,s2,s3,s4} \draw[line] (student) -- (\x);
-  \end{scope}
+\begin{tikzpicture}[
+  uc/.style={ellipse,draw=mainblue,fill=white,minimum width=2.45cm,minimum height=0.72cm,align=center,font=\footnotesize},
+  group/.style={draw=linegray,rounded corners,inner xsep=0.35cm,inner ysep=0.22cm}
+]
+  \node[actor] (admin) at (-5.2,2.3) {管理员};
+  \node[uc] (a1) at (-1.8,2.75) {审核教师账号};
+  \node[uc] (a2) at (1.35,2.75) {停用用户};
+  \node[uc] (a3) at (-0.25,1.75) {查看基础统计};
+  \node[group,fit=(a1)(a2)(a3)] (agroup) {};
+
+  \node[actor] (teacher) at (-5.2,0.0) {教师};
+  \node[uc] (t1) at (-1.8,0.5) {创建课程};
+  \node[uc] (t2) at (1.35,0.5) {布置作业};
+  \node[uc] (t3) at (-1.8,-0.5) {查看提交};
+  \node[uc] (t4) at (1.35,-0.5) {评分导出};
+  \node[group,fit=(t1)(t2)(t3)(t4)] (tgroup) {};
+
+  \node[actor] (student) at (-5.2,-2.3) {学生};
+  \node[uc] (s1) at (-1.8,-1.75) {加入课程};
+  \node[uc] (s2) at (1.35,-1.75) {查看作业};
+  \node[uc] (s3) at (-1.8,-2.75) {提交作业};
+  \node[uc] (s4) at (1.35,-2.75) {查看成绩};
+  \node[group,fit=(s1)(s2)(s3)(s4)] (sgroup) {};
+
+  \node[draw=linegray,rounded corners,inner xsep=0.45cm,inner ysep=0.35cm,fit=(agroup)(tgroup)(sgroup)] (systembox) {};
+  \node[font=\scriptsize,fill=white,inner sep=1pt] at (systembox.north) {系统功能};
+
+  \draw[line] (admin.east) -- (agroup.west);
+  \draw[line] (teacher.east) -- (tgroup.west);
+  \draw[line] (student.east) -- (sgroup.west);
 \end{tikzpicture}
 \caption{系统用例图}
 \end{figure}
@@ -268,25 +274,29 @@ submissions & 保存提交和评分结果 & id、assignment\_id、student\_id、
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[node distance=1.05cm and 1.1cm]
+\begin{tikzpicture}[node distance=0.9cm and 1.3cm]
   \node[flow] (a) {学生登录};
-  \node[flow, right=of a] (b) {加入课程};
-  \node[flow, right=of b] (c) {查看作业};
+  \node[flow, below=of a] (b) {加入课程};
+  \node[flow, below=of b] (c) {查看作业};
   \node[flow, below=of c] (d) {填写说明\\或上传文件};
-  \node[decision, left=of d] (e) {已有\\提交?};
-  \node[flow, below=of e] (f) {更新提交};
-  \node[flow, left=of e] (g) {新增提交};
-  \node[flow, right=of d] (h) {教师查看};
-  \node[flow, right=of h] (i) {评分评语};
+  \node[decision, below=of d] (e) {已有\\提交?};
+  \node[flow, below left=of e] (g) {新增提交};
+  \node[flow, below right=of e] (f) {更新提交};
+  \node[flow, below=1.35cm of e] (save) {保存提交记录};
+  \node[flow, below=of save] (h) {教师查看};
+  \node[flow, below=of h] (i) {评分评语};
+  \node[flow, below=of i] (j) {学生查看成绩};
   \draw[arrow] (a) -- (b);
   \draw[arrow] (b) -- (c);
   \draw[arrow] (c) -- (d);
   \draw[arrow] (d) -- (e);
-  \draw[arrow] (e) -- node[left]{是} (f);
-  \draw[arrow] (e) -- node[above]{否} (g);
-  \draw[arrow] (f) -| (h);
-  \draw[arrow] (g) |- (h);
+  \draw[arrow] (e) -- node[above left,font=\scriptsize]{否} (g);
+  \draw[arrow] (e) -- node[above right,font=\scriptsize]{是} (f);
+  \draw[arrow] (g.south) |- (save.west);
+  \draw[arrow] (f.south) |- (save.east);
+  \draw[arrow] (save) -- (h);
   \draw[arrow] (h) -- (i);
+  \draw[arrow] (i) -- (j);
 \end{tikzpicture}
 \caption{学生提交与教师评分流程图}
 \end{figure}
