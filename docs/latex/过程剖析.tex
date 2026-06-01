@@ -16,7 +16,6 @@
 
 \begin{verbatim}
 .venv\Scripts\python -m unittest discover -s tests -v
-.venv\Scripts\python -m py_compile docs\bug_repro\compile_indent_before.py
 .venv\Scripts\python -m py_compile docs\bug_repro\compile_indent_after.py
 \end{verbatim}
 
@@ -91,7 +90,7 @@ OK
 
 \subsection{问题现象}
 
-Python 对缩进非常敏感。开发过程中，如果在循环、判断、函数等代码块下面少缩进一层，程序在真正运行前就会失败。为了在提交前提前发现这种问题，我使用 \code{py_compile} 对单个 Python 文件进行编译检查。修复前的复现文件为：
+Python 对缩进非常敏感。开发过程中，如果在循环、判断、函数等代码块下面少缩进一层，程序在真正运行前就会失败。为了在提交前提前发现这种问题，我使用 \code{py_compile} 对单个 Python 文件进行编译检查。修复前临时复现文件中的关键代码为：
 
 \begin{verbatim}
 def total_score(items):
