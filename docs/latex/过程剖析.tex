@@ -10,16 +10,17 @@
 
 \section{开发与调试概述}
 
-本系统开发过程主要围绕三类问题展开：一是 Web 表单输入不符合预期时，后端路由是否会直接崩溃；二是 Python 文件在修改过程中是否存在语法或缩进错误；三是修复后是否有测试用例或命令行检查保证问题不再出现。为了避免只描述结果，本报告保留了两个真实调试案例：一个来自 Flask 路由业务逻辑，一个来自 Python 编译检查阶段。
+本系统开发过程中，我重点记录了三个真实调试案例。它们都不是事后手写错误页面，而是在系统运行、页面点击或文件上传过程中真实复现出来的：一是教师发布作业时异常课程编号导致后端报错；二是学生选课表单方法与 Flask 路由不一致导致 405；三是学生上传中文文件名附件后，教师端显示文件名丢失。
 
-调试时使用的主要命令如下：
+调试时使用的主要验证方式如下：
 
 \begin{verbatim}
 .venv\Scripts\python -m unittest discover -s tests -v
-.venv\Scripts\python -m py_compile docs\bug_repro\compile_indent_after.py
+python scripts\init_db.py --reset
+python app.py
 \end{verbatim}
 
-这些命令分别用于运行系统工作流测试和检查 Python 源文件是否能通过编译。下面按问题出现、原因分析、修复方法、修复后验证四个角度记录。
+其中单元测试用于回归验证，浏览器页面操作用于复现真实用户路径。下面按问题现象、排查过程、修复方法、修复后验证四个角度记录。
 
 \newpage
 
@@ -33,7 +34,7 @@
 
 \subsection{排查过程}
 
-根据错误日志继续向下追踪，异常位置定位在 \code{assignment_system/routes.py} 的教师发布作业路由中。原代码直接写成：
+根据错误日志继续追踪，异常位置定位在 \code{assignment_system/routes.py} 的教师发布作业路由中。原代码直接写成：
 
 \begin{verbatim}
 course_id = int(request.form.get("course_id", 0))
@@ -59,101 +60,140 @@ except (TypeError, ValueError):
     return redirect(url_for("teacher_dashboard"))
 \end{verbatim}
 
-这样处理后，后端对异常表单数据有了明确兜底，页面行为也和普通业务校验保持一致。
-
-\newpage
-
 \subsection{修复后效果}
 
 使用同样的异常表单再次提交后，系统不再出现 500 错误，而是回到教师工作台，并在顶部显示“请选择有效课程。”提示。
 
 \screenshot{bug_01_form_validation_after.png}{修复后显示有效课程提示}
 
-\subsection{自动化验证}
-
-为了避免以后修改时再次出现同类问题，我补充了单元测试 \code{test_invalid_assignment_course_id_shows_message}。测试过程先登录教师账号，再向发布作业接口提交异常的 \code{course_id=abc}，期望返回正常页面并显示提示信息。
-
-修复前，新增测试会失败，错误位置指向 \code{course_id = int(...)}；修复后，全部测试通过：
-
-\begin{verbatim}
-test_admin_teacher_student_workflow ... ok
-test_invalid_assignment_course_id_shows_message ... ok
-test_pending_teacher_cannot_login_before_approval ... ok
-
-Ran 3 tests in 2.149s
-OK
-\end{verbatim}
-
 \newpage
 
-\section{问题二：Python 编译检查发现缩进错误}
+\section{问题二：学生选课表单方法错误导致 405}
 
 \subsection{问题现象}
 
-Python 对缩进非常敏感。开发过程中，如果在循环、判断、函数等代码块下面少缩进一层，程序在真正运行前就会失败。为了在提交前提前发现这种问题，我使用 \code{py_compile} 对单个 Python 文件进行编译检查。修复前临时复现文件中的关键代码为：
+在联调学生加入课程功能时，我遇到过一次页面按钮能显示、但点击后没有完成选课的问题。真实复现步骤是：先用教师账号创建一门新课程，再切换到学生账号，在“可选课程”中点击“加入课程”。点击后浏览器没有回到学生工作台，而是进入 Flask 默认的 \code{Method Not Allowed} 页面。
+
+\screenshot{bug_02_route_405_before.png}{修复前点击加入课程后出现 405}
+
+\subsection{排查过程}
+
+先看页面 URL，错误发生在 \code{/student/courses/2/enroll?}。再回到代码中对照路由定义，发现后端路由只允许 POST：
 
 \begin{verbatim}
-def total_score(items):
-    total = 0
-    for item in items:
-    total += item["score"]
-    return total
+@app.post("/student/courses/<int:course_id>/enroll")
+@role_required("student")
+def student_enroll_course(course_id):
+    ...
 \end{verbatim}
 
-其中 \code{total += item["score"]} 应该属于 \code{for} 循环体，但实际没有缩进到循环内部。运行编译检查后，终端直接报出 \code{IndentationError}。
+但是模板中的表单方法写成了 GET：
 
-\screenshot{bug_02_py_compile_before.png}{修复前 py\_compile 检查发现缩进错误}
+\begin{verbatim}
+<form method="get" action="{{ url_for('student_enroll_course',
+                                      course_id=course.id) }}">
+    <button type="submit">加入课程</button>
+</form>
+\end{verbatim}
 
-\subsection{原因分析}
-
-这个错误不是业务逻辑错误，而是 Python 源代码在解释执行前的语法结构错误。它的特点是：
-
-\begin{itemize}
-  \item 浏览器页面还没有机会打开，程序就已经无法通过编译。
-  \item 错误位置通常会指向代码块后的第一行异常缩进位置。
-  \item 如果只靠肉眼检查，长文件中很容易漏掉一行缩进。
-\end{itemize}
-
-因此在调试这类问题时，先用 \code{py_compile} 做快速检查比直接启动 Web 服务更清楚。它可以把问题限定在某个 Python 文件内部，避免把语法错误误判成 Flask 或数据库问题。
-
-\newpage
+这就导致浏览器真实点击按钮时发送 GET 请求，而 Flask 端只接受 POST，于是返回 405。这个问题不是数据库问题，也不是权限问题，而是前端模板和后端路由方法没有对齐。
 
 \subsection{修复方法}
 
-修复方式是把累加语句缩进到 \code{for} 循环体内部，使代码块结构和程序意图一致：
+修复方式是把学生选课表单改回 POST，使页面提交方式和 Flask 路由定义一致。
 
 \begin{verbatim}
-def total_score(items):
-    total = 0
-    for item in items:
-        total += item["score"]
-    return total
+<form method="post" action="{{ url_for('student_enroll_course',
+                                       course_id=course.id) }}">
+    <button type="submit">加入课程</button>
+</form>
 \end{verbatim}
 
-修复后再次运行：
+\subsection{修复后效果}
+
+修复后使用同样流程重新测试：教师创建课程，学生点击“加入课程”。页面不再进入 405，而是回到学生工作台，顶部显示“选课成功。”，课程状态也变为“已加入”。
+
+\screenshot{bug_02_route_405_after.png}{修复后点击加入课程成功}
+
+\newpage
+
+\section{问题三：中文附件文件名被处理后丢失}
+
+\subsection{问题现象}
+
+在调试学生提交附件功能时，我用学生页面真实上传了一个名为 \code{数据库练习报告.docx} 的文件。提交成功后切换到教师账号查看提交记录，发现文件列没有显示原来的中文文件名，而只剩下 \code{docx}。
+
+\screenshot{bug_03_chinese_filename_before.png}{修复前中文附件名显示为 docx}
+
+\subsection{排查过程}
+
+问题定位到 \code{SubmissionService.save()} 中的文件名处理逻辑。原代码把 \code{secure_filename()} 的结果同时当作页面展示名和服务器存储名：
 
 \begin{verbatim}
-.venv\Scripts\python -m py_compile docs\bug_repro\compile_indent_after.py
+if file_storage and file_storage.filename:
+    filename = secure_filename(file_storage.filename) or "upload.dat"
+    stored_filename = f"{uuid4().hex}_{filename}"
+    file_storage.save(upload_dir() / stored_filename)
 \end{verbatim}
 
-命令可以正常结束，并输出手动补充的通过提示。
+\code{secure_filename()} 的作用是生成适合服务器保存的安全文件名，它会去掉路径符号、空格和不安全字符。对于中文文件名，中文主体会被移除，例如 \code{数据库练习报告.docx} 会变成 \code{docx}。如果直接把这个结果显示给教师，用户看到的原文件名就丢失了。
 
-\screenshot{bug_02_py_compile_after.png}{修复后 py\_compile 检查通过}
+\subsection{修复方法}
 
-\section{调试经验总结}
+修复思路是把“用户看到的文件名”和“服务器存储的文件名”分开：页面展示和下载继续使用原始文件名；服务器实际保存时仍然使用安全文件名并加上随机编号。
 
-两个问题分别对应了开发过程中的两层质量检查。第一个问题发生在 Web 运行阶段，需要通过异常请求和单元测试发现；第二个问题发生在 Python 编译阶段，可以在运行服务前通过 \code{py_compile} 提前发现。对课程作业项目来说，这两类检查都很有用。
+\begin{verbatim}
+def display_upload_filename(raw_filename):
+    name = Path(raw_filename.replace("\\", "/")).name.strip()
+    return name or "upload.dat"
+
+def stored_upload_filename(display_name):
+    safe_name = secure_filename(display_name)
+    suffix = Path(display_name).suffix
+    if suffix and safe_name == suffix.lstrip("."):
+        safe_name = f"upload{suffix}"
+    return f"{uuid4().hex}_{safe_name or 'upload.dat'}"
+
+if file_storage and file_storage.filename:
+    filename = display_upload_filename(file_storage.filename)
+    stored_filename = stored_upload_filename(filename)
+    file_storage.save(upload_dir() / stored_filename)
+\end{verbatim}
+
+\subsection{修复后效果}
+
+修复后再次通过学生页面上传同一个中文文件名附件。教师端提交记录中可以看到完整的 \code{数据库练习报告.docx}，服务器内部仍然使用随机安全文件名保存，避免同名覆盖和路径风险。
+
+\screenshot{bug_03_chinese_filename_after.png}{修复后教师端保留中文附件名}
+
+\newpage
+
+\section{自动化验证与经验总结}
+
+为了避免这些问题以后再次出现，我补充了自动化测试。测试覆盖了完整工作流、异常课程编号、学生选课表单方法、中文附件文件名保留、教师注册审核等场景。最终测试结果如下：
+
+\begin{verbatim}
+test_admin_teacher_student_workflow ... ok
+test_chinese_upload_filename_is_preserved ... ok
+test_invalid_assignment_course_id_shows_message ... ok
+test_pending_teacher_cannot_login_before_approval ... ok
+test_student_enroll_form_uses_post_and_submits ... ok
+
+Ran 5 tests in 3.363s
+OK
+\end{verbatim}
 
 \begin{longtable}{p{3.2cm}p{4.6cm}p{5.8cm}}
 \toprule
 问题类型 & 表现 & 处理方式 \\
 \midrule
 表单输入异常 & 页面返回 500，后端日志出现 ValueError & 增加 try/except 和业务提示，并补充单元测试 \\
-Python 缩进错误 & py\_compile 报 IndentationError & 调整代码块缩进，再次运行编译检查 \\
-回归验证不足 & 修复后无法确认是否会复发 & 将异常输入场景写入 tests 目录下的测试用例 \\
+表单方法错误 & 学生点击加入课程后进入 405 页面 & 对齐模板 method 与 Flask 路由方法，并测试 POST 提交 \\
+中文文件名丢失 & 教师端只看到 docx，原中文名消失 & 展示名和服务器存储名分离，保留原文件名下载 \\
+回归验证不足 & 修复后无法确认是否会复发 & 将关键异常输入和页面流程写入 tests 目录 \\
 \bottomrule
 \end{longtable}
 
-通过这次调试可以看出，系统开发不能只关注“正常流程能跑通”。后端接口应当假设输入可能不合法，Python 文件也应在提交前先通过编译检查。最终修复后，系统在异常输入下不再崩溃，代码也通过了单元测试和编译检查，交付稳定性更高。
+通过这些调试可以看出，系统开发不能只关注“正常流程能跑通”。后端接口需要校验异常输入，模板和路由要保持一致，文件上传也要区分用户可见信息和服务器安全存储信息。最终修复后，系统在异常输入、页面点击和中文文件上传场景下都更加稳定。
 
 \end{document}

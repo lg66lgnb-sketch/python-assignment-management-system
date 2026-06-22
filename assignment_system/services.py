@@ -14,6 +14,19 @@ def now_text():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def display_upload_filename(raw_filename):
+    name = Path(raw_filename.replace("\\", "/")).name.strip()
+    return name or "upload.dat"
+
+
+def stored_upload_filename(display_name):
+    safe_name = secure_filename(display_name)
+    suffix = Path(display_name).suffix
+    if suffix and safe_name == suffix.lstrip("."):
+        safe_name = f"upload{suffix}"
+    return f"{uuid4().hex}_{safe_name or 'upload.dat'}"
+
+
 class UserService:
     def register(self, username, password, name, role):
         role = role if role in {"teacher", "student"} else "student"
@@ -186,8 +199,8 @@ class SubmissionService:
         filename = None
         stored_filename = None
         if file_storage and file_storage.filename:
-            filename = secure_filename(file_storage.filename) or "upload.dat"
-            stored_filename = f"{uuid4().hex}_{filename}"
+            filename = display_upload_filename(file_storage.filename)
+            stored_filename = stored_upload_filename(filename)
             file_storage.save(upload_dir() / stored_filename)
 
         db = get_db()

@@ -38,12 +38,12 @@
                     <td class="actions">
                         {% if user.status != "approved" %}
                         <form method="post" action="{{ url_for('admin_set_user_status', user_id=user.id, status='approved') }}">
-                            <button type="submit">通过</button>
+                            <button class="small-btn" type="submit">通过</button>
                         </form>
                         {% endif %}
                         {% if user.status != "disabled" %}
                         <form method="post" action="{{ url_for('admin_set_user_status', user_id=user.id, status='disabled') }}">
-                            <button type="submit">停用</button>
+                            <button class="small-btn danger-btn" type="submit">停用</button>
                         </form>
                         {% endif %}
                     </td>

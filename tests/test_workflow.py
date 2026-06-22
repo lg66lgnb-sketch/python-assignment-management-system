@@ -1,4 +1,5 @@
-import tempfile
+import io
+import shutil
 import unittest
 from pathlib import Path
 
@@ -8,9 +9,11 @@ from assignment_system.database import init_db
 
 class WorkflowTestCase(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        db_path = Path(self.tmp.name) / "test.sqlite3"
-        upload_path = Path(self.tmp.name) / "uploads"
+        self.test_root = Path(__file__).resolve().parent.parent / "data" / "test_runtime"
+        db_path = self.test_root / "test.sqlite3"
+        upload_path = self.test_root / "uploads"
+        shutil.rmtree(self.test_root, ignore_errors=True)
+        self.test_root.mkdir(parents=True, exist_ok=True)
         self.app = create_app(
             {
                 "TESTING": True,
@@ -24,7 +27,7 @@ class WorkflowTestCase(unittest.TestCase):
         self.client = self.app.test_client()
 
     def tearDown(self):
-        self.tmp.cleanup()
+        shutil.rmtree(self.test_root, ignore_errors=True)
 
     def login(self, username, password):
         return self.client.post(
@@ -93,6 +96,46 @@ class WorkflowTestCase(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("请选择有效课程".encode("utf-8"), response.data)
+
+    def test_student_enroll_form_uses_post_and_submits(self):
+        self.login("teacher01", "teacher123")
+        self.client.post(
+            "/teacher/courses",
+            data={"name": "数据结构实训", "description": "用于测试学生选课。"},
+            follow_redirects=True,
+        )
+        self.client.get("/logout")
+
+        response = self.login("student01", "student123")
+        self.assertIn(b'action="/student/courses/2/enroll"', response.data)
+        self.assertIn(b'method="post"', response.data)
+
+        response = self.client.post("/student/courses/2/enroll", follow_redirects=True)
+        self.assertIn("选课成功".encode("utf-8"), response.data)
+        self.assertIn("数据结构实训".encode("utf-8"), response.data)
+
+    def test_chinese_upload_filename_is_preserved(self):
+        self.login("student01", "student123")
+        response = self.client.post(
+            "/student/assignments/1/submit",
+            data={
+                "content": "上传中文文件名附件。",
+                "file": (io.BytesIO("测试内容".encode("utf-8")), "数据库练习报告.docx"),
+            },
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+        self.assertIn("作业已提交".encode("utf-8"), response.data)
+
+        self.client.get("/logout")
+        self.login("teacher01", "teacher123")
+        response = self.client.get("/teacher/assignments/1")
+        self.assertIn("数据库练习报告.docx".encode("utf-8"), response.data)
+
+        response = self.client.get("/teacher/submissions/1/download")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("%E6%95%B0%E6%8D%AE%E5%BA%93", response.headers["Content-Disposition"])
+        response.close()
 
 
 if __name__ == "__main__":

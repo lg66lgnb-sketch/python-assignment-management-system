@@ -48,12 +48,18 @@
                     <td>{{ assignment.title }}</td>
                     <td>{{ assignment.course_name }}</td>
                     <td>{{ assignment.deadline }}</td>
-                    <td>{{ "已提交" if assignment.submission_id else "未提交" }}</td>
+                    <td>
+                        {% if assignment.submission_id %}
+                        <span class="badge approved">已提交</span>
+                        {% else %}
+                        <span class="badge pending">未提交</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if assignment.score is not none %}
-                        {{ assignment.score }} 分<br><span class="muted">{{ assignment.comment }}</span>
+                        <span class="badge approved">{{ assignment.score }} 分</span><br><span class="muted">{{ assignment.comment }}</span>
                         {% else %}
-                        未评分
+                        <span class="badge pending">未评分</span>
                         {% endif %}
                     </td>
                     <td><a class="small-btn" href="{{ url_for('student_submit_assignment', assignment_id=assignment.id) }}">提交/修改</a></td>
